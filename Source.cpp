@@ -1,67 +1,182 @@
 #include <iostream>
+#include <time.h>
+#include <stdio.h>
 #include "Room.h"
 #include "Player.h"
-#include "map.h"
+#include "Map.h"
+#include "Menu.h"
+#include "Fight.h"
 
 using namespace std;
 
-int acceptInput(int max)
-{
-	int input;
-	while (true) 
-	{
-		cout << "Choose an action: ";
-		if (cin >> input && input > 0 && input <= max)
-			break;
-		cout << "Choose an action number 1-" << to_string(max) << "." << endl;
-	}
-	return input;
-}
 
 int main() {
-	Item laptop("Laptop", "An old, beat-up laptop computer.", 1);
-	Item flashdrive("Flash Drive", "A 64 GB flashdrive with a label that says 'KEY'", 2);
-	Item hdmiCable("HDMI Cable", "A 6-foot long HDMI cable.", 3);
-
-	vector<Item> room1Items(0), room2Items(0);
-	room1Items.push_back(laptop);
-	room1Items.push_back(flashdrive);
-	room2Items.push_back(hdmiCable);
-	Room start("Starting Room", "Around you are a few desks and some strange looking equipment. \nThere are doors to the south and east.", room1Items, 0, 0, 0);
-	Room second("Next Room", "There is one desk in the room that is empty except for a desktop computer. \nOn the ceiling is a projector.", room2Items, 1, 0, 0);
-	Map lab;
-	lab.addRoom(start, 0, 0, 0);
-	lab.addRoom(second, 1, 0, 0);
-	lab.addRoute(start, second);
-	lab.addRoute(second, start);
+	Lab lab;
 	vector<Item> startingInv;
-	Player player1(start, startingInv);
+	Player player1("You", 0, 4, 0, startingInv, 100, 10);
+	Player* playerptr = &player1;
+	srand((unsigned int)time(NULL));
+
+	
 	while (true)
 	{
-		Room current = player1.getCurrentRoom();
-		if (player1.getChangedRooms())
+		bool correctRoom = false;
+		bool correctItems = false;
+		if (player1.getX() == 0 && player1.getY() == 5 && player1.getZ() == 0)
 		{
-			cout << current.toString();
+			correctRoom = true;
 		}
-		cout << "Which direction would you like to go?" << endl << "1: North" << endl << "2: South" << endl << "3: West" << endl << "4: East" << endl;
-		int decision = acceptInput(4);
-		switch (decision)
+		if (player1.hasItem(4) && player1.hasItem(2))
+		{
+			correctItems = true;
+		}
+		Room* current = lab.currentRoom(playerptr);
+		cout << current->toString();
+		MainMenu firstMenu(playerptr, lab);
+		firstMenu.acceptInput(playerptr);
+		MoveMenu movement(lab.directionsAvailable(*current));
+		InvSubMenu invMenu(playerptr);
+		vector<Item> equip = player1.equippableItems();
+		
+		switch(player1.getMenuChoice())
 		{
 		case 1:
-			player1.setCurrentRoom(lab.toNorth(current.getX(), current.getY(), current.getZ()));
+			movement.acceptInput(playerptr);
 			break;
 		case 2:
-			player1.setCurrentRoom(lab.toSouth(current.getX(), current.getY(), current.getZ()));
+			if (current->getItems().size() == 1)
+				cout << current->getItems()[0].getDescription();
+			else
+			{
+				ItemMenu inspect(current->getItems());
+				inspect.acceptInput(playerptr);
+				cout << current->idSearch(player1.getMenuChoice()).getDescription() << endl;
+			}
 			break;
 		case 3:
-			player1.setCurrentRoom(lab.toWest(current.getX(), current.getY(), current.getZ()));
+			cout << player1.itemReport();
+			
+			invMenu.acceptInput(playerptr);
+			switch (player1.getMenuChoice())
+			{
+			case 2:
+				if (player1.getInv().size() == 1)
+					cout << player1.getInv()[0].getDescription();
+				else
+				{
+					ItemMenu inspectInv(player1.getInv());
+					inspectInv.acceptInput(playerptr);
+					cout << player1.idSearch(player1.getMenuChoice()).getDescription() << endl;
+				}
+				break;
+			case 6:
+				if (player1.getInv().size() == 1)
+					lab.dropItem(playerptr, player1.getInv()[0].getId());
+				else
+				{
+					ItemMenu dropFromInv(player1.getInv());
+					dropFromInv.acceptInput(playerptr);
+					lab.dropItem(playerptr, player1.getMenuChoice());
+				}
+				break;
+			case 7:
+				if (equip.size() == 1)
+					if (equip[0].getEquippable())
+						player1.setEquipped(equip[0]);
+					else
+						player1.setArmor(equip[0]);
+				else
+				{
+					ItemMenu equipFromInv(equip);
+					equipFromInv.acceptInput(playerptr);
+					Item toBeEquipped = player1.idSearch(player1.getMenuChoice());
+					if (toBeEquipped.getIsArmor())
+						player1.setArmor(toBeEquipped);
+					else
+						player1.setEquipped(toBeEquipped);
+				}
+				break;
+			case 8:
+				if (player1.hasArmor() && player1.hasEquipped())
+				{
+					vector<Item> equipped;
+					equipped.push_back(player1.getArmor());
+					equipped.push_back(player1.getEquipped());
+					ItemMenu unequipItem(equipped);
+					unequipItem.acceptInput(playerptr);
+					if (player1.getArmor().getId() == player1.getMenuChoice())
+						player1.unequipArmor();
+					else
+						player1.unequip();
+				}
+				else if (player1.hasEquipped())
+					player1.unequip();
+				else
+					player1.unequipArmor();
+				break;
+			default:
+				break;
+			}
 			break;
-		default:
-			player1.setCurrentRoom(lab.toEast(current.getX(), current.getY(), current.getZ()));
+		case 4:
+			if (player1.usables().size() == 1)
+			{
+				if (player1.usables()[0].useItem(correctRoom, correctItems))
+				{
+					lab.success(player1.usables()[0].getId());
+				}
+			}
+			else
+			{
+				ItemMenu use(player1.usables());
+				use.acceptInput(playerptr);
+				if (player1.idSearch(player1.getMenuChoice()).useItem(correctRoom, correctItems))
+					lab.success(player1.getMenuChoice());
+			}
+			break;
+		case 5:
+			if (current->acquirables().size() == 1)
+			{
+				player1.addItem(current->acquirables()[0]);
+				lab.currentRoom(playerptr)->deleteItem(current->acquirables()[0].getId());
+			}
+			else
+			{
+				ItemMenu pickUp(current->acquirables());
+				pickUp.acceptInput(playerptr);
+				player1.addItem(current->idSearch(player1.getMenuChoice()));
+				lab.currentRoom(playerptr)->deleteItem(player1.getMenuChoice());
+			}
+			break;
+		case 10:
+			if (current->usables().size() == 1)
+			{
+				if (current->usables()[0].useItem(correctRoom, correctItems))
+				{
+					lab.success(current->usables()[0].getId());
+				}
+			}
+			else
+			{
+				ItemMenu use(current->usables());
+				use.acceptInput(playerptr);
+				if (current->idSearch(player1.getMenuChoice()).useItem(correctRoom, correctItems))
+					lab.success(player1.getMenuChoice());
+			}
 			break;
 		}
 
-		cout << endl;
+		if (lab.win)
+			break;
 
+		if ((rand() % 100) < 20)
+		{
+			Fight encounter(playerptr, lab.selectRandomEnemy());
+			encounter.fightSequence();
+		}
+		if(player1.getHp() < 98)
+			playerptr->takeDmg(-3);
+		cout << endl << endl << endl;
 	}
+	cout << "You won the game!" << endl;
 }

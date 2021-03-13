@@ -35,8 +35,88 @@ public:
 
     void setName(string n) { name = n; }
     void setDescription(string d) { description = d; }
+    void setX(int newX) { x = newX; }
+    void setY(int newY) { y = newY; }
+    void setZ(int newZ) { z = newZ; }
     void setItems(vector<Item> it) { items = it; }
     void AddItem(Item add) { items.push_back(add); }
+    void deleteItem(int deletedId)
+    {
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getId() == deletedId)
+            {
+                items.erase(i);
+                break;
+            }
+        }
+    }
+
+    bool hasItem(int itemId)
+    {
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getId() == itemId)
+                return true;
+        }
+        return false;
+    }
+
+    bool hasAcquirable()
+    {
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getAcquirable())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    vector<Item> acquirables()
+    {
+        vector<Item> ac;
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getAcquirable())
+            {
+                ac.push_back(*i);
+            }
+        }
+        return ac;
+    }
+
+    bool hasUsable() 
+    {
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getUsableInRoom())
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    vector<Item> usables()
+    {
+        vector<Item> u;
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getUsableInRoom())
+            {
+                u.push_back(*i);
+            }
+        }
+        return u;
+    }
 
     friend bool operator == (const Room x, const Room y)
     {
@@ -44,6 +124,25 @@ public:
             return true;
         else
             return false;
+    }
+
+    bool hasItem()
+    {
+        if (items.size() == 0)
+            return false;
+        else
+            return true;
+    }
+
+    Item idSearch(int idCheck)
+    {
+        vector<Item>::iterator i;
+        for (i = items.begin(); i != items.end(); ++i)
+        {
+            if ((*i).getId() == idCheck)
+                return (*i);
+        }
+        return Item();
     }
 
     string toString()
